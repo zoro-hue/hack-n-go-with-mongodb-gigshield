@@ -1,0 +1,236 @@
+GigShield – Parametric Income Protection for Gig Workers
+Overview
+
+GigShield is a parametric insurance platform designed to protect the income of gig economy workers such as delivery partners. The system automatically monitors environmental and social disruptions (e.g., heavy rain, extreme heat, pollution, strikes) and triggers insurance payouts when predefined thresholds are crossed.
+
+The platform eliminates manual claim filing by using automated triggers and real-time validation, ensuring fast payouts and fraud prevention.
+
+Problem Statement
+
+Gig workers often experience income loss due to disruptions such as:
+
+Heavy rainfall
+
+Extreme heat conditions
+
+Air pollution
+
+Flood alerts
+
+Local transport or market strikes
+
+Traditional insurance processes are slow and require manual claims. GigShield solves this by using parametric insurance triggers that automatically initiate payouts when disruption thresholds are reached.
+
+Key Features
+1. Onboarding System
+
+Workers register with their:
+
+Name and phone number
+
+City and zone
+
+Delivery platform (Zomato, Swiggy, etc.)
+
+Weekly earnings
+
+Work hours and experience
+
+An AI-based risk model calculates:
+
+Weekly premium
+
+Maximum coverage
+
+Worker risk score
+
+2. AI Risk Assessment
+
+The platform evaluates multiple risk factors such as:
+
+City risk level
+
+Zone type
+
+Work hours
+
+Years of experience
+
+Delivery platform
+
+Based on these factors, the system recommends the most suitable insurance plan.
+
+3. Insurance Plans
+
+Basic Shield
+
+Rain and heat triggers
+
+1 claim per week
+
+Basic coverage
+
+Standard Guard
+
+All disruption triggers
+
+2 claims per week
+
+Instant UPI payouts
+
+Premium Armor
+
+Full coverage
+
+Unlimited claims
+
+Priority payouts
+
+Early weather alerts
+
+4. Live Disruption Monitoring
+
+The system continuously monitors environmental conditions including:
+
+Rainfall intensity
+
+Temperature
+
+Air pollution levels
+
+Flood alerts
+
+Local strike notifications
+
+If thresholds are exceeded, claims are automatically triggered.
+
+5. Automated Claims System
+
+Claims follow an automated pipeline:
+
+Weather or disruption trigger detected
+
+Worker location validated
+
+Fraud detection checks
+
+Claim approved automatically
+
+Instant payout through UPI
+
+Average processing time: under 60 seconds
+
+6. Fraud Detection System
+
+The platform includes multiple fraud prevention mechanisms:
+
+GPS validation
+
+Activity pattern analysis
+
+Weather data correlation
+
+Duplicate claim detection
+
+Each claim receives a fraud risk score before approval.
+
+7. Dashboard
+
+Workers can view:
+
+Weekly premium
+
+Insurance coverage
+
+Claims history
+
+Live disruption alerts
+
+Total income protected
+
+8. Admin Analytics Dashboard
+
+The insurer dashboard provides:
+
+Total active policies
+
+Premium revenue
+
+Claim payout trends
+
+Loss ratio analysis
+
+City-wise risk distribution
+
+Fraud detection reports
+
+Technology Stack
+
+Frontend
+
+React
+
+JavaScript
+
+Recharts (data visualization)
+
+Lucide React (icons)
+
+Design
+
+Responsive dashboard layout
+
+Real-time charts and monitoring UI
+
+Simulation
+
+Mock disruption triggers
+
+AI-based risk scoring logic
+
+Project Structure
+gigshield
+│
+├── src
+│   ├── App.jsx
+│   ├── main.jsx
+│   └── index.css
+│
+├── public
+│
+├── package.json
+└── README.md
+Installation & Setup
+1. Clone the repository
+git clone https://github.com/your-username/gigshield.git
+2. Navigate to the project
+cd gigshield
+3. Install dependencies
+npm install
+4. Install additional libraries
+npm install lucide-react recharts
+5. Run the project
+npm run dev
+
+Open in browser:
+
+http://localhost:5173
+Future Improvements
+
+Integration with real weather APIs
+
+GPS tracking for delivery partners
+
+Mobile application version
+
+Blockchain-based claim verification
+
+Integration with gig platforms like Zomato and Swiggy
+
+Impact
+
+GigShield provides financial security for gig workers by ensuring income protection during disruptions. The parametric insurance approach enables instant payouts and reduces claim processing complexity.
+
+Author
+
+Jayanth Jagu
