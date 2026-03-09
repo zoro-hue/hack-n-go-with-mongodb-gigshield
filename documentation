@@ -1,0 +1,1147 @@
+# NLMongo — Full Technical Documentation
+
+> **Version:** 1.0.0  
+> **Last Updated:** March 2026  
+> **Project Type:** Natural Language Interface for MongoDB  
+
+---
+
+## Table of Contents
+
+1. [Project Overview](#1-project-overview)
+2. [System Architecture](#2-system-architecture)
+3. [Technology Stack](#3-technology-stack)
+4. [Installation & Setup](#4-installation--setup)
+5. [Frontend Documentation](#5-frontend-documentation)
+6. [Backend Documentation](#6-backend-documentation)
+7. [AI / NLP Layer](#7-ai--nlp-layer)
+8. [Database Layer](#8-database-layer)
+9. [API Documentation](#9-api-documentation)
+10. [Security](#10-security)
+11. [Testing](#11-testing)
+12. [Deployment](#12-deployment)
+13. [Troubleshooting](#13-troubleshooting)
+14. [Future Enhancements](#14-future-enhancements)
+15. [References](#15-references)
+
+---
+
+## 1. Project Overview
+
+### 1.1 Purpose
+
+NLMongo is a full-stack web application that enables users to interact with MongoDB databases using plain English sentences instead of MongoDB Query Language (MQL). It bridges the gap between non-technical users — business analysts, managers, product owners — and the raw power of a document database.
+
+### 1.2 Problem Being Solved
+
+Traditional database querying requires:
+- Knowledge of MongoDB syntax and operators (`$gt`, `$match`, `$group`, etc.)
+- Understanding of collection schemas and data types
+- Familiarity with aggregation pipelines for complex analysis
+
+This creates a bottleneck where non-technical stakeholders must depend on engineers or data analysts to retrieve information. NLMongo eliminates this bottleneck.
+
+### 1.3 Core Capabilities
+
+| Capability | Description |
+|---|---|
+| Plain English Querying | Users type questions in natural language |
+| Automatic Query Translation | AI converts questions to valid MongoDB queries |
+| Query Transparency | Generated query is shown to the user |
+| Schema Exploration | Users can browse collections and fields |
+| Result Presentation | Data is shown in structured, paginated tables |
+| Query History | Previous queries are saved for the session |
+
+### 1.4 Scope & Constraints
+
+**In Scope:**
+- Read operations: `find`, `aggregate`, `countDocuments`
+- Single-database connections
+- Web-based interface (desktop-first)
+
+**Out of Scope (v1.0):**
+- Write operations (insert, update, delete)
+- Multi-database connections
+- Role-based access control
+- Mobile application
+
+---
+
+## 2. System Architecture
+
+### 2.1 High-Level Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                      CLIENT BROWSER                      │
+│                                                         │
+│   ┌─────────────┐   ┌──────────────┐  ┌─────────────┐  │
+│   │ Query Input │   │ Results View │  │Schema Panel │  │
+│   └──────┬──────┘   └──────────────┘  └─────────────┘  │
+│          │              React.js SPA                     │
+└──────────┼──────────────────────────────────────────────┘
+           │  HTTP POST /api/query
+           ▼
+┌─────────────────────────────────────────────────────────┐
+│                   EXPRESS.JS SERVER                      │
+│                                                         │
+│   ┌──────────────┐      ┌─────────────────────────┐    │
+│   │ Route Layer  │─────▶│     NLP Service          │    │
+│   │ /api/query   │      │  (Claude / OpenAI API)   │    │
+│   │ /api/schema  │      └────────────┬────────────┘    │
+│   └──────────────┘                   │                  │
+│                          ┌───────────▼────────────┐    │
+│                          │   Query Validator       │    │
+│                          │   (Safety + Sanitize)   │    │
+│                          └───────────┬────────────┘    │
+│                                      │                  │
+│                          ┌───────────▼────────────┐    │
+│                          │    MongoDB Service      │    │
+│                          │    (Execute Query)      │    │
+│                          └───────────┬────────────┘    │
+└──────────────────────────────────────┼─────────────────┘
+                                       │
+           ┌───────────────────────────▼────────────────┐
+           │              MONGODB DATABASE               │
+           │         (Local / Atlas Cluster)             │
+           └────────────────────────────────────────────┘
+```
+
+### 2.2 Data Flow
+
+```
+Step 1:  User types: "Find all orders above $500 that are pending"
+          │
+Step 2:  React sends POST /api/query { question: "..." }
+          │
+Step 3:  Express receives request, calls NLP Service
+          │
+Step 4:  NLP Service builds prompt with schema context
+         and calls Claude API
+          │
+Step 5:  Claude returns structured JSON:
+         {
+           collection: "orders",
+           operation: "find",
+           query: { amount: { $gt: 500 }, status: "pending" },
+           explanation: "Finds pending orders above $500"
+         }
+          │
+Step 6:  Query Validator checks safety & operation whitelist
+          │
+Step 7:  MongoDB Service executes query on the database
+          │
+Step 8:  Response: { results: [...], count: 2, query: "..." }
+          │
+Step 9:  React renders data in table + shows generated query
+```
+
+### 2.3 Component Interaction Diagram
+
+```
+App.jsx
+ ├── Header.jsx
+ ├── Sidebar.jsx
+ │    ├── SchemaExplorer.jsx
+ │    └── ExampleQueries.jsx
+ └── MainPanel.jsx
+      ├── QueryInput.jsx ──────────────── calls /api/query
+      ├── ExplanationCard.jsx
+      ├── ResultTabs.jsx
+      │    ├── ResultsTable.jsx
+      │    ├── QueryInspector.jsx
+      │    └── JSONViewer.jsx
+      └── QueryHistory.jsx
+```
+
+---
+
+## 3. Technology Stack
+
+### 3.1 Frontend
+
+| Technology | Version | Purpose |
+|---|---|---|
+| React.js | 18.x | UI component framework |
+| Vite | 5.x | Build tool and dev server |
+| Tailwind CSS | 3.x | Utility-first styling |
+| Axios | 1.x | HTTP client for API calls |
+| Lucide React | 0.383 | Icon library |
+
+### 3.2 Backend
+
+| Technology | Version | Purpose |
+|---|---|---|
+| Node.js | 18+ | JavaScript runtime |
+| Express.js | 4.x | Web server framework |
+| Mongoose | 8.x | MongoDB ODM |
+| dotenv | 16.x | Environment variable management |
+| cors | 2.x | Cross-Origin Resource Sharing |
+| helmet | 7.x | HTTP security headers |
+| express-rate-limit | 7.x | Rate limiting middleware |
+
+### 3.3 AI / NLP
+
+| Technology | Purpose |
+|---|---|
+| Anthropic Claude API (claude-sonnet-4) | Primary NL-to-query translation |
+| OpenAI GPT-4o (optional) | Alternative AI backend |
+| spaCy (Python, optional) | NLP preprocessing / entity recognition |
+| NLTK (Python, optional) | Tokenization and intent parsing fallback |
+
+### 3.4 Database
+
+| Technology | Version | Purpose |
+|---|---|---|
+| MongoDB | 6.0+ | Primary database |
+| MongoDB Atlas | Cloud | Production deployment option |
+| MongoDB Compass | GUI | Local development and schema inspection |
+
+### 3.5 DevOps
+
+| Technology | Purpose |
+|---|---|
+| Docker + Docker Compose | Containerized local development |
+| GitHub Actions | CI/CD pipeline |
+| Render / Railway | Backend deployment |
+| Vercel / Netlify | Frontend deployment |
+
+---
+
+## 4. Installation & Setup
+
+### 4.1 Prerequisites
+
+Before starting, ensure the following are installed:
+
+```bash
+node --version     # v18.0.0 or higher
+npm --version      # v9.0.0 or higher
+mongod --version   # v6.0.0 or higher (or use Atlas)
+```
+
+### 4.2 Clone the Repository
+
+```bash
+git clone https://github.com/your-username/nlmongo.git
+cd nlmongo
+```
+
+### 4.3 Environment Configuration
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your values:
+
+```env
+# ── Server ─────────────────────────────────────
+PORT=5000
+NODE_ENV=development
+
+# ── MongoDB ────────────────────────────────────
+MONGO_URI=mongodb://localhost:27017
+MONGO_DB_NAME=nlmongo_db
+
+# ── AI API (choose one) ────────────────────────
+ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxxxxxxx
+# OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# ── Security ───────────────────────────────────
+ALLOWED_ORIGINS=http://localhost:5173
+RATE_LIMIT_WINDOW_MS=60000
+RATE_LIMIT_MAX_REQUESTS=30
+```
+
+### 4.4 Backend Setup
+
+```bash
+cd server
+npm install
+npm run dev       # Starts on http://localhost:5000
+```
+
+### 4.5 Frontend Setup
+
+```bash
+cd client
+npm install
+npm run dev       # Starts on http://localhost:5173
+```
+
+### 4.6 Seed Sample Data (Optional)
+
+```bash
+cd server
+npm run seed
+```
+
+This inserts sample `users`, `orders`, and `products` collections for testing.
+
+### 4.7 Docker Setup (Alternative)
+
+```bash
+# From project root
+docker-compose up --build
+```
+
+`docker-compose.yml` spins up:
+- MongoDB on port `27017`
+- Express server on port `5000`
+- React dev server on port `5173`
+
+---
+
+## 5. Frontend Documentation
+
+### 5.1 Project Structure
+
+```
+client/
+├── public/
+│   └── favicon.ico
+├── src/
+│   ├── components/
+│   │   ├── Header.jsx
+│   │   ├── Sidebar/
+│   │   │   ├── SchemaExplorer.jsx
+│   │   │   └── ExampleQueries.jsx
+│   │   ├── QueryInput.jsx
+│   │   ├── ResultsTable.jsx
+│   │   ├── QueryInspector.jsx
+│   │   ├── ExplanationCard.jsx
+│   │   └── QueryHistory.jsx
+│   ├── hooks/
+│   │   ├── useQuery.js        # API call logic
+│   │   └── useSchema.js       # Schema fetching
+│   ├── utils/
+│   │   └── formatQuery.js     # Formats JSON → shell string
+│   ├── App.jsx
+│   ├── main.jsx
+│   └── index.css
+├── vite.config.js
+└── package.json
+```
+
+### 5.2 Key Components
+
+#### `QueryInput.jsx`
+
+Handles user input and query submission.
+
+```jsx
+// Props: none
+// State: input (string), loading (bool)
+// Emits: onQuery(result) to parent via callback
+
+const QueryInput = ({ onQuery }) => {
+  const [input, setInput] = useState("");
+  const { execute, loading } = useQuery();
+
+  const handleSubmit = async () => {
+    const result = await execute(input);
+    onQuery(result);
+  };
+
+  // Keyboard shortcut: Enter to submit, Shift+Enter for newline
+};
+```
+
+#### `ResultsTable.jsx`
+
+Renders query results in a paginated table.
+
+```jsx
+// Props:
+//   data    - array of MongoDB documents
+//   count   - total result count
+//   loading - boolean
+
+const ResultsTable = ({ data, count, loading }) => {
+  // Dynamically generates columns from document keys
+  // Handles boolean, number, string, date types differently
+  // Supports 20-row pagination
+};
+```
+
+#### `SchemaExplorer.jsx`
+
+Fetches and displays the connected database's schema from `/api/schema`.
+
+```jsx
+// Props:
+//   activeCollection - currently selected collection name
+//   onSelect(name)   - callback when user clicks a collection
+```
+
+### 5.3 Custom Hooks
+
+#### `useQuery.js`
+
+```javascript
+// Sends POST /api/query and returns { result, loading, error }
+export const useQuery = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const execute = async (question) => {
+    setLoading(true);
+    try {
+      const { data } = await axios.post("/api/query", { question });
+      return data;
+    } catch (err) {
+      setError(err.response?.data?.message || "Query failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { execute, loading, error };
+};
+```
+
+### 5.4 Environment Variables (Frontend)
+
+```env
+VITE_API_URL=http://localhost:5000
+```
+
+---
+
+## 6. Backend Documentation
+
+### 6.1 Project Structure
+
+```
+server/
+├── routes/
+│   ├── query.js          # POST /api/query
+│   └── schema.js         # GET /api/schema
+├── services/
+│   ├── nlpService.js     # NL → MongoDB query (AI call)
+│   ├── mongoService.js   # Query execution
+│   └── schemaService.js  # Schema introspection
+├── middleware/
+│   ├── validator.js      # Query safety checks
+│   ├── rateLimiter.js    # Rate limiting
+│   └── errorHandler.js   # Global error handling
+├── config/
+│   └── db.js             # MongoDB connection
+├── seed/
+│   └── seedData.js       # Sample data insertion
+├── app.js
+└── package.json
+```
+
+### 6.2 Express App Setup (`app.js`)
+
+```javascript
+const express = require("express");
+const cors = require("cors");
+const helmet = require("helmet");
+const { connectDB } = require("./config/db");
+const queryRoutes = require("./routes/query");
+const schemaRoutes = require("./routes/schema");
+const errorHandler = require("./middleware/errorHandler");
+
+const app = express();
+
+// Security
+app.use(helmet());
+app.use(cors({ origin: process.env.ALLOWED_ORIGINS }));
+app.use(express.json());
+
+// Routes
+app.use("/api/query", queryRoutes);
+app.use("/api/schema", schemaRoutes);
+
+// Error Handler
+app.use(errorHandler);
+
+// Start
+connectDB().then(() => {
+  app.listen(process.env.PORT, () => {
+    console.log(`Server running on port ${process.env.PORT}`);
+  });
+});
+```
+
+### 6.3 Route: `POST /api/query` (`routes/query.js`)
+
+```javascript
+const router = express.Router();
+const { translateQuery } = require("../services/nlpService");
+const { executeQuery } = require("../services/mongoService");
+const { validateQuery } = require("../middleware/validator");
+
+router.post("/", rateLimiter, async (req, res, next) => {
+  try {
+    const { question } = req.body;
+
+    if (!question || typeof question !== "string") {
+      return res.status(400).json({ error: "question field is required" });
+    }
+
+    // Step 1: Translate NL to MongoDB query via AI
+    const parsed = await translateQuery(question);
+
+    // Step 2: Validate query is safe to execute
+    validateQuery(parsed);
+
+    // Step 3: Execute against MongoDB
+    const { results, count } = await executeQuery(parsed);
+
+    // Step 4: Build shell-style query string for display
+    const generatedQuery = buildQueryString(parsed);
+
+    res.json({ ...parsed, results, count, generatedQuery });
+  } catch (err) {
+    next(err);
+  }
+});
+```
+
+### 6.4 Middleware: Query Validator (`middleware/validator.js`)
+
+```javascript
+const ALLOWED_OPERATIONS = ["find", "aggregate", "countDocuments"];
+
+const BLOCKED_KEYWORDS = [
+  "drop", "delete", "remove", "insert", "update",
+  "replace", "createIndex", "dropIndex", "eval"
+];
+
+const validateQuery = (parsed) => {
+  if (!ALLOWED_OPERATIONS.includes(parsed.operation)) {
+    throw new Error(`Operation '${parsed.operation}' is not permitted.`);
+  }
+
+  const queryStr = JSON.stringify(parsed).toLowerCase();
+  for (const keyword of BLOCKED_KEYWORDS) {
+    if (queryStr.includes(keyword)) {
+      throw new Error(`Query contains restricted keyword: '${keyword}'`);
+    }
+  }
+};
+```
+
+---
+
+## 7. AI / NLP Layer
+
+### 7.1 NLP Service (`services/nlpService.js`)
+
+The NLP Service is the core intelligence of NLMongo. It constructs a prompt containing:
+
+1. The database schema (collections + fields)
+2. The user's natural language question
+3. Strict instructions to return only valid JSON
+
+```javascript
+const Anthropic = require("@anthropic-ai/sdk");
+
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+const buildSystemPrompt = (schema) => `
+You are a MongoDB query expert. Convert natural language questions into MongoDB queries.
+
+Available collections:
+${Object.entries(schema).map(([col, fields]) =>
+  `- ${col}: ${fields.join(", ")}`
+).join("\n")}
+
+Respond ONLY with a valid JSON object in this exact format:
+{
+  "collection": "collection_name",
+  "operation": "find" | "aggregate" | "countDocuments",
+  "query": { /* MongoDB filter */ },
+  "options": { "limit": number, "sort": {}, "projection": {} },
+  "pipeline": [ /* Only for aggregate */ ],
+  "explanation": "Human-readable description of what this query does"
+}
+No markdown, no explanation outside the JSON.`;
+
+const translateQuery = async (question) => {
+  const schema = await getSchema();
+
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 1000,
+    system: buildSystemPrompt(schema),
+    messages: [{ role: "user", content: question }],
+  });
+
+  const text = response.content.map(b => b.text || "").join("");
+  const clean = text.replace(/```json|```/g, "").trim();
+  return JSON.parse(clean);
+};
+```
+
+### 7.2 Prompt Engineering
+
+The system prompt is carefully designed with these principles:
+
+**Schema Injection** — The full schema is included in every request so the AI knows which collections and fields are valid.
+
+**Output Format Control** — The AI is instructed to return only JSON, preventing prose responses that would break parsing.
+
+**Operation Guidance** — The AI is told to use `aggregate` for grouping, sorting, and complex transformations, and `find` for simple filters.
+
+**Safety by Design** — The prompt only describes read operations. Write operations are never mentioned, reducing the likelihood of the AI generating them.
+
+### 7.3 Example Prompt & Response
+
+**User Input:**
+```
+Count how many orders exist for each status
+```
+
+**System Prompt (abbreviated):**
+```
+You are a MongoDB expert. Available collections:
+- orders: _id, userId, product, amount, status, category, orderDate
+...
+Respond ONLY with JSON.
+```
+
+**Claude Response:**
+```json
+{
+  "collection": "orders",
+  "operation": "aggregate",
+  "pipeline": [
+    { "$group": { "_id": "$status", "count": { "$sum": 1 } } },
+    { "$sort": { "count": -1 } }
+  ],
+  "query": {},
+  "options": {},
+  "explanation": "Groups all orders by their status field and counts how many exist in each group, sorted by count descending."
+}
+```
+
+### 7.4 OpenAI Fallback (Optional)
+
+If `ANTHROPIC_API_KEY` is not set but `OPENAI_API_KEY` is, the service automatically switches to GPT-4o:
+
+```javascript
+const translateQuery = async (question) => {
+  if (process.env.ANTHROPIC_API_KEY) {
+    return translateWithClaude(question);
+  } else if (process.env.OPENAI_API_KEY) {
+    return translateWithOpenAI(question);
+  } else {
+    throw new Error("No AI API key configured.");
+  }
+};
+```
+
+---
+
+## 8. Database Layer
+
+### 8.1 MongoDB Connection (`config/db.js`)
+
+```javascript
+const mongoose = require("mongoose");
+
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI, {
+      dbName: process.env.MONGO_DB_NAME,
+    });
+    console.log("MongoDB connected successfully");
+  } catch (err) {
+    console.error("MongoDB connection failed:", err.message);
+    process.exit(1);
+  }
+};
+```
+
+### 8.2 Query Execution (`services/mongoService.js`)
+
+```javascript
+const mongoose = require("mongoose");
+
+const executeQuery = async ({ collection, operation, query, options, pipeline }) => {
+  const db = mongoose.connection.db;
+  const col = db.collection(collection);
+
+  let results;
+
+  if (operation === "find") {
+    const cursor = col.find(query || {});
+    if (options?.sort) cursor.sort(options.sort);
+    if (options?.limit) cursor.limit(options.limit);
+    if (options?.projection) cursor.project(options.projection);
+    results = await cursor.toArray();
+  } else if (operation === "aggregate") {
+    results = await col.aggregate(pipeline).toArray();
+  } else if (operation === "countDocuments") {
+    const count = await col.countDocuments(query || {});
+    results = [{ count }];
+  }
+
+  return { results, count: results.length };
+};
+```
+
+### 8.3 Schema Introspection (`services/schemaService.js`)
+
+```javascript
+// Samples up to 100 documents per collection to infer field names
+const getSchema = async () => {
+  const db = mongoose.connection.db;
+  const collections = await db.listCollections().toArray();
+  const schema = {};
+
+  for (const { name } of collections) {
+    const sample = await db.collection(name).find().limit(100).toArray();
+    const fields = new Set();
+    sample.forEach(doc => Object.keys(doc).forEach(k => fields.add(k)));
+    schema[name] = [...fields];
+  }
+
+  return schema;
+};
+```
+
+### 8.4 Sample Collections Schema
+
+#### `users`
+```
+_id        ObjectId
+name       String
+email      String
+age        Number
+city       String
+createdAt  Date
+isActive   Boolean
+```
+
+#### `orders`
+```
+_id        ObjectId
+userId     ObjectId (ref: users)
+product    String
+amount     Number
+status     String (pending | shipped | delivered | cancelled)
+category   String
+orderDate  Date
+```
+
+#### `products`
+```
+_id        ObjectId
+name       String
+price      Number
+category   String
+stock      Number
+rating     Number
+brand      String
+```
+
+---
+
+## 9. API Documentation
+
+### Base URL
+
+```
+Development:  http://localhost:5000/api
+Production:   https://your-domain.com/api
+```
+
+---
+
+### `POST /api/query`
+
+Translates a natural language question into a MongoDB query and executes it.
+
+**Request**
+
+```http
+POST /api/query
+Content-Type: application/json
+
+{
+  "question": "Show all active users older than 25 from Seoul"
+}
+```
+
+**Success Response (200)**
+
+```json
+{
+  "collection": "users",
+  "operation": "find",
+  "query": {
+    "isActive": true,
+    "age": { "$gt": 25 },
+    "city": "Seoul"
+  },
+  "options": { "limit": 50 },
+  "explanation": "Finds active users older than 25 who are located in Seoul.",
+  "generatedQuery": "db.users.find({ isActive: true, age: { $gt: 25 }, city: 'Seoul' }).limit(50)",
+  "results": [
+    { "_id": "u4", "name": "Noah Kim", "age": 41, "city": "Seoul", "isActive": true }
+  ],
+  "count": 1
+}
+```
+
+**Error Response (400)**
+
+```json
+{
+  "error": "question field is required"
+}
+```
+
+**Error Response (403)**
+
+```json
+{
+  "error": "Operation 'deleteMany' is not permitted."
+}
+```
+
+**Error Response (429)**
+
+```json
+{
+  "error": "Too many requests. Please wait before trying again."
+}
+```
+
+---
+
+### `GET /api/schema`
+
+Returns the inferred schema (collections and field names) of the connected database.
+
+**Request**
+
+```http
+GET /api/schema
+```
+
+**Success Response (200)**
+
+```json
+{
+  "schema": {
+    "users": ["_id", "name", "email", "age", "city", "createdAt", "isActive"],
+    "orders": ["_id", "userId", "product", "amount", "status", "category", "orderDate"],
+    "products": ["_id", "name", "price", "category", "stock", "rating", "brand"]
+  }
+}
+```
+
+---
+
+### `GET /api/health`
+
+Health check endpoint.
+
+**Request**
+
+```http
+GET /api/health
+```
+
+**Response (200)**
+
+```json
+{
+  "status": "ok",
+  "mongo": "connected",
+  "uptime": 3621
+}
+```
+
+---
+
+## 10. Security
+
+### 10.1 Operation Whitelist
+
+Only the following MongoDB operations are allowed to execute:
+
+- `find`
+- `aggregate`
+- `countDocuments`
+
+Any AI-generated query requesting `insert`, `update`, `delete`, `drop`, or other write/admin operations is rejected with a `403` error before reaching MongoDB.
+
+### 10.2 Rate Limiting
+
+API calls are rate-limited to prevent abuse and control AI API costs:
+
+```javascript
+// Default: 30 requests per minute per IP
+const limiter = rateLimit({
+  windowMs: process.env.RATE_LIMIT_WINDOW_MS || 60000,
+  max: process.env.RATE_LIMIT_MAX_REQUESTS || 30,
+  message: { error: "Too many requests. Please wait before trying again." }
+});
+```
+
+### 10.3 CORS Policy
+
+Only origins defined in `ALLOWED_ORIGINS` can communicate with the API.
+
+```javascript
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS?.split(",") || ["http://localhost:5173"]
+}));
+```
+
+### 10.4 HTTP Security Headers (Helmet)
+
+Helmet is used to set the following headers automatically:
+
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `Strict-Transport-Security`
+- `Content-Security-Policy`
+
+### 10.5 API Key Protection
+
+- AI API keys are stored only in server-side `.env` files.
+- The frontend never receives or stores any API key.
+- All AI API calls are made server-side.
+
+### 10.6 Input Sanitization
+
+User input is passed to the AI API as a plain string. It is never directly interpolated into any MongoDB query. The AI generates the query; the query then goes through validation before execution.
+
+---
+
+## 11. Testing
+
+### 11.1 Running Tests
+
+```bash
+# Backend unit tests
+cd server
+npm test
+
+# Frontend component tests
+cd client
+npm test
+```
+
+### 11.2 Backend Tests
+
+Tests are written with **Jest** and **Supertest**.
+
+```javascript
+// routes/query.test.js
+describe("POST /api/query", () => {
+  it("returns results for a valid question", async () => {
+    const res = await request(app)
+      .post("/api/query")
+      .send({ question: "Show all users" });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toHaveProperty("results");
+    expect(res.body).toHaveProperty("count");
+    expect(res.body).toHaveProperty("generatedQuery");
+  });
+
+  it("rejects requests without a question field", async () => {
+    const res = await request(app).post("/api/query").send({});
+    expect(res.statusCode).toBe(400);
+  });
+});
+```
+
+### 11.3 Validator Tests
+
+```javascript
+// middleware/validator.test.js
+describe("validateQuery", () => {
+  it("allows find operations", () => {
+    expect(() => validateQuery({ operation: "find", query: {} })).not.toThrow();
+  });
+
+  it("blocks delete operations", () => {
+    expect(() => validateQuery({ operation: "deleteMany" })).toThrow();
+  });
+});
+```
+
+### 11.4 Frontend Tests
+
+```javascript
+// components/QueryInput.test.jsx
+it("calls onQuery when Enter is pressed", async () => {
+  const mockOnQuery = jest.fn();
+  render(<QueryInput onQuery={mockOnQuery} />);
+  const input = screen.getByPlaceholderText(/ask anything/i);
+  fireEvent.change(input, { target: { value: "Show all users" } });
+  fireEvent.keyDown(input, { key: "Enter" });
+  await waitFor(() => expect(mockOnQuery).toHaveBeenCalled());
+});
+```
+
+---
+
+## 12. Deployment
+
+### 12.1 Frontend — Vercel
+
+```bash
+cd client
+npm run build
+# Deploy /dist folder to Vercel
+vercel --prod
+```
+
+Set environment variable in Vercel dashboard:
+```
+VITE_API_URL = https://your-backend-url.com
+```
+
+### 12.2 Backend — Render / Railway
+
+1. Connect your GitHub repository.
+2. Set root directory to `/server`.
+3. Set build command: `npm install`
+4. Set start command: `node app.js`
+5. Add environment variables from `.env`.
+
+### 12.3 Database — MongoDB Atlas
+
+1. Create a free cluster at [mongodb.com/atlas](https://www.mongodb.com/atlas).
+2. Whitelist your backend server's IP.
+3. Create a database user with `readOnly` role.
+4. Copy the connection string into `MONGO_URI`.
+
+### 12.4 Docker Production Build
+
+```dockerfile
+# server/Dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+EXPOSE 5000
+CMD ["node", "app.js"]
+```
+
+```yaml
+# docker-compose.yml
+version: "3.9"
+services:
+  mongo:
+    image: mongo:6
+    ports: ["27017:27017"]
+    volumes: ["mongo_data:/data/db"]
+
+  server:
+    build: ./server
+    ports: ["5000:5000"]
+    env_file: .env
+    depends_on: [mongo]
+
+  client:
+    build: ./client
+    ports: ["5173:5173"]
+    depends_on: [server]
+
+volumes:
+  mongo_data:
+```
+
+---
+
+## 13. Troubleshooting
+
+### MongoDB connection refused
+
+```
+Error: connect ECONNREFUSED 127.0.0.1:27017
+```
+
+**Fix:** Ensure MongoDB is running locally: `mongod --dbpath /data/db`  
+Or check your Atlas connection string and network access settings.
+
+---
+
+### Claude API returns non-JSON response
+
+```
+SyntaxError: Unexpected token < in JSON at position 0
+```
+
+**Fix:** The AI occasionally returns markdown-wrapped JSON. The service strips `` ```json `` fences automatically. If the issue persists, check your system prompt — ensure the instruction "Respond ONLY with JSON" is present.
+
+---
+
+### CORS error in browser
+
+```
+Access to XMLHttpRequest blocked by CORS policy
+```
+
+**Fix:** Add your frontend URL to the `ALLOWED_ORIGINS` variable in `.env`:
+```
+ALLOWED_ORIGINS=http://localhost:5173,https://your-frontend.vercel.app
+```
+
+---
+
+### Rate limit exceeded
+
+```
+{ "error": "Too many requests." }
+```
+
+**Fix:** Wait 60 seconds or increase `RATE_LIMIT_MAX_REQUESTS` in `.env` for development.
+
+---
+
+### Query returns 0 results unexpectedly
+
+The AI may have generated an exact string match for a field that uses different casing or spelling in your data. Try rephrasing your question to include exact values, or use the Schema Explorer sidebar to verify field names.
+
+---
+
+## 14. Future Enhancements
+
+| Feature | Priority | Description |
+|---|---|---|
+| Write Operations Mode | High | Optional mode to allow inserts and updates with confirmation dialogs |
+| Auth & User Roles | High | JWT-based login with per-user query history |
+| Multi-database Support | Medium | Connect to and switch between multiple databases |
+| Chart Visualizations | Medium | Auto-render bar/pie charts for aggregate results |
+| Query Scheduling | Medium | Schedule recurring queries and receive email reports |
+| CSV / Excel Export | Low | Export result tables to CSV or XLSX |
+| Mobile App | Low | React Native port of the interface |
+| Fine-tuned NL Model | Low | Train a custom model on MongoDB query pairs for lower latency |
+| Voice Input | Low | Accept spoken queries via Web Speech API |
+
+---
+
+## 15. References
+
+| Resource | Link |
+|---|---|
+| Natural Language Interfaces to Databases (1995 Paper) | https://arxiv.org/abs/cmp-lg/9503016 |
+| MongoDB Query Language Documentation | https://www.mongodb.com/docs/manual/tutorial/query-documents/ |
+| MongoDB Aggregation Pipeline | https://www.mongodb.com/docs/manual/core/aggregation-pipeline/ |
+| Anthropic Claude API Docs | https://docs.anthropic.com/ |
+| OpenAI API Reference | https://platform.openai.com/docs/api-reference |
+| spaCy Documentation | https://spacy.io/usage |
+| NLTK Documentation | https://www.nltk.org/ |
+| Express.js Guide | https://expressjs.com/en/guide/routing.html |
+| React Documentation | https://react.dev/ |
+| Mongoose ODM | https://mongoosejs.com/docs/ |
+
+---
+
+*NLMongo Documentation — v1.0.0*  
+*For issues or contributions, visit the [GitHub repository](https://github.com/your-username/nlmongo).*
